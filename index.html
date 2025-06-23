@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Define the Central Valley</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+  <style>
+    #map { height: 500px; margin-top: 10px; }
+    body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+    label, input, button { display: block; width: 100%; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>What is the Central Valley?</h1>
+  <p>Please enter your city and draw on the map where you think California's Central Valley is.</p>
+  
+  <form id="submission-form">
+    <label for="city">Your City:</label>
+    <input type="text" id="city" name="city" required />
+    <input type="submit" value="Submit" />
+  </form>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+  <script>
+    const map = L.map('map').setView([37, -119], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    new L.Control.Draw({
+      draw: {
+        polygon: true,
+        marker: false,
+        polyline: false,
+        rectangle: false,
+        circle: false,
+        circlemarker: false
+      },
+      edit: { featureGroup: drawnItems }
+    }).addTo(map);
+
+    let latestGeoJSON = null;
+
+    map.on('draw:created', function (e) {
+      drawnItems.clearLayers();
+      drawnItems.addLayer(e.layer);
+      latestGeoJSON = e.layer.toGeoJSON();
+    });
+
+    document.getElementById('submission-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const city = document.getElementById('city').value;
+      if (!latestGeoJSON) {
+        alert('Please draw a region on the map.');
+        return;
+      }
+
+      const data = {
+        city,
+        shape: latestGeoJSON.geometry
+      };
+
+      // Replace this with your own Airtable, Supabase, or webhook endpoint
+      console.log('Submitting:', JSON.stringify(data));
+      alert('Thank you! Your submission was logged to the console (connect to backend to store it).');
+    });
+  </script>
+</body>
+</html>

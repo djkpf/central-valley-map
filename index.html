@@ -7,53 +7,167 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
   <style>
-    #map { height: 500px; margin-top: 10px; }
-    body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-    label, input, button { display: block; width: 100%; margin-top: 10px; }
+    :root {
+      --text-color: #1a1a1a;
+      --background: #ffffff;
+      --accent: #0097a7;
+      --muted: #666;
+    }
+
+    body {
+      background-color: var(--background);
+      color: var(--text-color);
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 32px;
+      line-height: 1.3;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 18px;
+      color: var(--muted);
+    }
+
+    label, input, button {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      font-size: 16px;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    input[type="submit"] {
+      background-color: var(--accent);
+      color: white;
+      font-weight: bold;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #007c91;
+    }
+
+    .instruction-banner {
+      background-color: #f4f4f4;
+      color: var(--text-color);
+      padding: 20px;
+      border-left: 6px solid var(--accent);
+      margin: 30px 0;
+    }
+
+    .instruction-banner h2 {
+      font-size: 20px;
+      margin: 0 0 10px;
+    }
+
+    .instruction-banner ol {
+      padding-left: 20px;
+      margin: 0;
+    }
+
+    #map {
+      height: 500px;
+      margin-top: 20px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .leaflet-tooltip-no-box {
+      background: none;
+      border: none;
+      box-shadow: none;
+      font-size: 12px;
+      font-weight: bold;
+      color: #111;
+    }
   </style>
 </head>
 <body>
-  <h1>What is the Central Valley?</h1>
-  <p>Please enter your city and draw on the map where you think California's Central Valley is.</p>
-  
+  <h1>What is the "Central Valley"?</h1>
+  <p>We built this tool to understand how different people understand the location of the Central Valley. We will ask you to enter the city you live in and then draw on the map the boundaries of the Central Valley. The drawing is a little tricky, but I am sure you will figure it out.</p>
+
   <form id="submission-form">
-    <label for="city">Your City:</label>
+    <label for="city">Enter the city you live in:</label>
     <input type="text" id="city" name="city" required />
-    <input type="submit" value="Submit" />
   </form>
 
+  <div class="instruction-banner">
+    <h2>Where would you mark the Central Valley’s boundaries?</h2>
+    <p>Here’s how to draw:</p>
+    <ol>
+      <li>Click to add a starting point.</li>
+      <li>Click again to add a few more points (just four clicks is fine!).</li>
+      <li>Click your starting point to close the shape.</li>
+    </ol>
+  </div>
+
   <div id="map"></div>
+  <button id="reset-drawing" style="margin-top: 10px; display: none;">Start Over</button>
+  <input type="submit" form="submission-form" value="Submit" style="margin-top: 16px; background-color: var(--accent); color: white; font-weight: bold; padding: 12px; border: none; border-radius: 4px; cursor: pointer;" />
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
   <script>
-    const map = L.map('map').setView([37, -119], 6);
+    let drawPolygon;
+    let latestGeoJSON = null;
+    const map = L.map('map', { zoomControl: false }).setView([37, -119], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     const drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
 
-    new L.Control.Draw({
+    const drawControl = new L.Control.Draw({
       draw: {
-        polygon: true,
+        polygon: {
+          allowIntersection: false,
+          showArea: true,
+          shapeOptions: { color: '#0097a7', weight: 4 }
+        },
         marker: false,
         polyline: false,
         rectangle: false,
         circle: false,
         circlemarker: false
       },
-      edit: { featureGroup: drawnItems }
-    }).addTo(map);
+      edit: { featureGroup: drawnItems, edit: false, remove: false }
+    });
+    map.addControl(drawControl);
 
-    let latestGeoJSON = null;
+    drawPolygon = new L.Draw.Polygon(map, drawControl.options.draw.polygon);
+    drawPolygon.enable();
 
     map.on('draw:created', function (e) {
       drawnItems.clearLayers();
       drawnItems.addLayer(e.layer);
       latestGeoJSON = e.layer.toGeoJSON();
+      document.getElementById('reset-drawing').style.display = 'block';
+    });
+
+    document.getElementById('reset-drawing').addEventListener('click', function () {
+      drawnItems.clearLayers();
+      latestGeoJSON = null;
+      drawPolygon.enable();
+      document.getElementById('reset-drawing').style.display = 'none';
     });
 
     document.getElementById('submission-form').addEventListener('submit', function (e) {
